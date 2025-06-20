@@ -8,6 +8,7 @@ const DatasetBrowser: React.FC = () => {
   const { rawFiles, setRawFiles, isLoading, setIsLoading, error, setError } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [timeFilter, setTimeFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFiles, setSelectedFiles] = useState(new Set<string>());
   const filesPerPage = 20;
@@ -31,8 +32,15 @@ const DatasetBrowser: React.FC = () => {
 
   const filteredFiles = rawFiles.filter(file => {
     const matchesSearch = file.filename.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDate = !dateFilter || file.filename.includes(dateFilter.replace(/-/g, ''));
-    return matchesSearch && matchesDate;
+
+    const matchesDate = !dateFilter || (file.parsedDate === dateFilter);
+
+    let matchesTime = true; // Default to true (don't filter out by time)
+    if (dateFilter && timeFilter) { // Only filter by time if a date is also selected
+        matchesTime = file.parsedTime.startsWith(timeFilter);
+    }
+
+    return matchesSearch && matchesDate && matchesTime;
   });
 
   const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
@@ -151,7 +159,7 @@ const DatasetBrowser: React.FC = () => {
           <h3 className="text-lg font-semibold text-white">Filters</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-white/80 text-sm font-medium mb-2">Search Files</label>
             <div className="relative">
@@ -172,6 +180,16 @@ const DatasetBrowser: React.FC = () => {
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-white/80 text-sm font-medium mb-2">Filter by Time</label>
+            <input
+              type="time"
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value)}
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
             />
           </div>
@@ -228,7 +246,7 @@ const DatasetBrowser: React.FC = () => {
                     <span className="text-white font-mono text-sm">{file.filename}</span>
                   </td>
                   <td className="px-6 py-4 text-white/80 text-sm">
-                    {file.parsedDate ? format(new Date(file.parsedDate + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
+                    {file.parsedDate ? format(new Date(file.parsedDate + 'T00:00:00'), 'dd/MM/yyyy') : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-white/80 text-sm">
                     {file.parsedTime || 'N/A'}
