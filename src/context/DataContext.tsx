@@ -5,6 +5,8 @@ export interface RawFile {
   size: number;
   lastModified: string;
   url: string;
+  parsedDate: string;
+  parsedTime: string;
 }
 
 export interface SpeciesDetection {

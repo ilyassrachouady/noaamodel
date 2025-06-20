@@ -9,6 +9,7 @@ const DatasetBrowser: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedFiles, setSelectedFiles] = useState(new Set<string>());
   const filesPerPage = 20;
 
   useEffect(() => {
@@ -40,6 +41,40 @@ const DatasetBrowser: React.FC = () => {
 
   const handleDownload = (file: any) => {
     window.open(file.url, '_blank');
+  };
+
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newSelectedFiles = new Set(selectedFiles);
+    if (event.target.checked) {
+      paginatedFiles.forEach(file => newSelectedFiles.add(file.filename));
+    } else {
+      paginatedFiles.forEach(file => newSelectedFiles.delete(file.filename));
+    }
+    setSelectedFiles(newSelectedFiles);
+  };
+
+  const handleSelectFile = (filename: string, isSelected: boolean) => {
+    const newSelectedFiles = new Set(selectedFiles);
+    if (isSelected) {
+      newSelectedFiles.add(filename);
+    } else {
+      newSelectedFiles.delete(filename);
+    }
+    setSelectedFiles(newSelectedFiles);
+  };
+
+  const handleDownloadSelected = () => {
+    selectedFiles.forEach(filename => {
+      const fileToDownload = rawFiles.find(rawFile => rawFile.filename === filename);
+      if (fileToDownload) {
+        const link = document.createElement('a');
+        link.href = fileToDownload.url;
+        link.setAttribute('download', fileToDownload.filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    });
   };
 
   if (isLoading) {
@@ -145,18 +180,35 @@ const DatasetBrowser: React.FC = () => {
 
       {/* File List */}
       <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
-        <div className="p-6 border-b border-white/20">
+        <div className="p-6 border-b border-white/20 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-white">
             Raw Files ({filteredFiles.length} found)
           </h3>
+          <button
+            onClick={handleDownloadSelected}
+            disabled={selectedFiles.size === 0}
+            className="flex items-center space-x-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-green-600 hover:to-emerald-600 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download className="h-4 w-4" />
+            <span>Download Selected ({selectedFiles.size})</span>
+          </button>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-white/5">
               <tr>
+                <th className="px-4 py-4 text-left text-white/80 font-medium">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox h-5 w-5 text-teal-400 bg-white/10 border-white/30 rounded focus:ring-teal-500"
+                    checked={paginatedFiles.length > 0 && paginatedFiles.every(file => selectedFiles.has(file.filename))}
+                    onChange={handleSelectAll}
+                  />
+                </th>
                 <th className="px-6 py-4 text-left text-white/80 font-medium">Filename</th>
-                <th className="px-6 py-4 text-left text-white/80 font-medium">Date/Time</th>
+                <th className="px-6 py-4 text-left text-white/80 font-medium">Date</th>
+                <th className="px-6 py-4 text-left text-white/80 font-medium">Time</th>
                 <th className="px-6 py-4 text-left text-white/80 font-medium">Size</th>
                 <th className="px-6 py-4 text-left text-white/80 font-medium">Actions</th>
               </tr>
@@ -164,11 +216,22 @@ const DatasetBrowser: React.FC = () => {
             <tbody>
               {paginatedFiles.map((file, index) => (
                 <tr key={index} className="border-t border-white/10 hover:bg-white/5 transition-colors">
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      className="form-checkbox h-5 w-5 text-teal-400 bg-white/10 border-white/30 rounded focus:ring-teal-500"
+                      checked={selectedFiles.has(file.filename)}
+                      onChange={(e) => handleSelectFile(file.filename, e.target.checked)}
+                    />
+                  </td>
                   <td className="px-6 py-4">
                     <span className="text-white font-mono text-sm">{file.filename}</span>
                   </td>
                   <td className="px-6 py-4 text-white/80 text-sm">
-                    {format(new Date(file.lastModified), 'MMM dd, yyyy HH:mm')}
+                    {file.parsedDate ? format(new Date(file.parsedDate + 'T00:00:00'), 'MMM dd, yyyy') : 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 text-white/80 text-sm">
+                    {file.parsedTime || 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-white/80 text-sm">
                     {S3Service.formatFileSize(file.size)}

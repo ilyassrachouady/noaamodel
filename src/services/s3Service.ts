@@ -15,11 +15,32 @@ export class S3Service {
 
       const files: RawFile[] = data.files.map((file: any) => {
         const filename = file.key.split('/').pop(); // just the file name
+
+        // Regex to extract date and time
+        const regex = /D(\d{8})-T(\d{6})/;
+        const match = filename.match(regex);
+
+        let parsedDate = '';
+        let parsedTime = '';
+
+        if (match && match[1] && match[2]) {
+          const dateStr = match[1]; // YYYYMMDD
+          const timeStr = match[2]; // HHMMSS
+
+          // Format date to YYYY-MM-DD
+          parsedDate = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+
+          // Format time to HH:MM:SS
+          parsedTime = `${timeStr.substring(0, 2)}:${timeStr.substring(2, 4)}:${timeStr.substring(4, 6)}`;
+        }
+
         return {
           filename: filename,
           size: file.size,
           lastModified: file.last_modified,
           url: `${S3_BASE_URL}/${file.key}`,
+          parsedDate: parsedDate,
+          parsedTime: parsedTime,
         };
       });
 
