@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { Database, Download, Calendar, HardDrive, Search, Filter } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { S3Service } from '../services/s3Service';
@@ -8,6 +11,7 @@ const DatasetBrowser: React.FC = () => {
   const { rawFiles, setRawFiles, isLoading, setIsLoading, error, setError } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
+  const [selectedDateObject, setSelectedDateObject] = useState<Date | null>(null);
   const [timeFilter, setTimeFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFiles, setSelectedFiles] = useState(new Set<string>());
@@ -176,11 +180,23 @@ const DatasetBrowser: React.FC = () => {
           
           <div>
             <label className="block text-white/80 text-sm font-medium mb-2">Filter by Date</label>
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent"
+            <DatePicker
+              selected={selectedDateObject}
+              onChange={(date: Date | null) => {
+                setSelectedDateObject(date);
+                if (date) {
+                  const year = date.getFullYear();
+                  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                  const day = date.getDate().toString().padStart(2, '0');
+                  setDateFilter(`${year}-${month}-${day}`);
+                } else {
+                  setDateFilter("");
+                }
+              }}
+              dateFormat="dd/MM/yyyy"
+              placeholderText="dd/mm/yyyy"
+              isClearable={true}
+              className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent placeholder-white/60"
             />
           </div>
 
