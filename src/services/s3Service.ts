@@ -44,4 +44,22 @@ export class S3Service {
   static getFileUrl(filename: string): string {
     return `https://noaa-wcsd-pds.s3.amazonaws.com/data/raw/Reuben_Lasker/RL2107/EK80/${filename}`;
   }
+
+  static async generateEchogram(filename: string): Promise<Blob> {
+    const echogramApiUrl = `https://noaa-s3-backend.fly.dev/generate-echogram?filename=${filename}`;
+    try {
+      const response = await fetch(echogramApiUrl);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Failed to generate echogram and parse error response.' }));
+        throw new Error(errorData.message || `Failed to generate echogram. Status: ${response.status}`);
+      }
+      return response.blob();
+    } catch (error) {
+      console.error('Error generating echogram:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('An unknown error occurred while generating the echogram.');
+    }
+  }
 }

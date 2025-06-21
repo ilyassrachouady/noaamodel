@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Database, Download, Calendar, HardDrive, Search, Filter } from 'lucide-react';
+import { Database, Download, Calendar, HardDrive, Search, Filter, Image as ImageIcon, X, AlertTriangle, Loader2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { S3Service } from '../services/s3Service';
 import { format } from 'date-fns';
@@ -17,11 +16,14 @@ const DatasetBrowser: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState(new Set<string>());
   const filesPerPage = 20;
 
-  useEffect(() => {
-    loadFiles();
-  }, []);
+  // Echogram specific state
+  const [echogramModalOpen, setEchogramModalOpen] = useState(false);
+  const [echogramImageUrl, setEchogramImageUrl] = useState<string | null>(null);
+  const [echogramLoadingFor, setEchogramLoadingFor] = useState<string | null>(null);
+  const [echogramError, setEchogramError] = useState<string | null>(null);
 
-  const loadFiles = async () => {
+
+  const loadFiles = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -32,28 +34,59 @@ const DatasetBrowser: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [setIsLoading, setError, setRawFiles]);
 
-  const filteredFiles = rawFiles.filter(file => {
+  useEffect(() => {
+    loadFiles();
+  }, [loadFiles]);
+
+  const filteredFiles = useMemo(() => rawFiles.filter(file => {
     const matchesSearch = file.filename.toLowerCase().includes(searchTerm.toLowerCase());
-
     const matchesDate = !dateFilter || (file.parsedDate === dateFilter);
-
-    let matchesTime = true; // Default to true (don't filter out by time)
-    if (dateFilter && timeFilter) { // Only filter by time if a date is also selected
-        matchesTime = file.parsedTime.startsWith(timeFilter);
+    let matchesTime = true;
+    if (dateFilter && timeFilter) {
+      matchesTime = file.parsedTime.startsWith(timeFilter);
     }
-
     return matchesSearch && matchesDate && matchesTime;
-  });
+  }), [rawFiles, searchTerm, dateFilter, timeFilter]);
 
   const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
   const startIndex = (currentPage - 1) * filesPerPage;
-  const paginatedFiles = filteredFiles.slice(startIndex, startIndex + filesPerPage);
+  const paginatedFiles = useMemo(() => filteredFiles.slice(startIndex, startIndex + filesPerPage), [filteredFiles, startIndex, filesPerPage]);
 
   const handleDownload = (file: any) => {
     window.open(file.url, '_blank');
   };
+
+  const handleGenerateEchogram = async (filename: string) => {
+    setEchogramLoadingFor(filename);
+    setEchogramError(null);
+    setEchogramImageUrl(null); // Clear previous image
+
+    try {
+      const blob = await S3Service.generateEchogram(filename);
+      const imageUrl = URL.createObjectURL(blob);
+      setEchogramImageUrl(imageUrl);
+      setEchogramModalOpen(true);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate echogram';
+      setEchogramError(errorMessage);
+      // Optionally, open modal to show error, or use a toast
+      setEchogramModalOpen(true);
+    } finally {
+      setEchogramLoadingFor(null);
+    }
+  };
+
+  const closeEchogramModal = () => {
+    setEchogramModalOpen(false);
+    if (echogramImageUrl) {
+      URL.revokeObjectURL(echogramImageUrl);
+      setEchogramImageUrl(null);
+    }
+    setEchogramError(null); // Clear error when closing modal
+  };
+
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newSelectedFiles = new Set(selectedFiles);
@@ -271,13 +304,33 @@ const DatasetBrowser: React.FC = () => {
                     {S3Service.formatFileSize(file.size)}
                   </td>
                   <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleDownload(file)}
-                      className="flex items-center space-x-2 bg-gradient-to-r from-teal-500 to-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-teal-600 hover:to-blue-600 transition-all duration-300"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span>Download</span>
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleDownload(file)}
+                        title="Download .raw file"
+                        className="flex items-center space-x-2 bg-gradient-to-r from-teal-500 to-blue-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:from-teal-600 hover:to-blue-600 transition-all duration-300"
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>Download</span>
+                      </button>
+                      {file.filename.toLowerCase().endsWith('.raw') && (
+                        <button
+                          onClick={() => handleGenerateEchogram(file.filename)}
+                          disabled={echogramLoadingFor !== null}
+                          title="Generate and view echogram for this .raw file"
+                          className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          {echogramLoadingFor === file.filename ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ImageIcon className="h-4 w-4" />
+                          )}
+                          <span>
+                            {echogramLoadingFor === file.filename ? 'Generating...' : 'Echogram'}
+                          </span>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -316,6 +369,57 @@ const DatasetBrowser: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Echogram Modal */}
+      {echogramModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-gray-700">
+              <h3 className="text-xl font-semibold text-white">Echogram Viewer</h3>
+              <button
+                onClick={closeEchogramModal}
+                className="text-gray-400 hover:text-white transition-colors"
+                aria-label="Close modal"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 flex-grow overflow-y-auto">
+              {echogramError && (
+                <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 text-center mb-4">
+                  <AlertTriangle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+                  <h4 className="text-lg font-semibold text-red-300 mb-1">Echogram Generation Failed</h4>
+                  <p className="text-red-300/80 text-sm">{echogramError}</p>
+                </div>
+              )}
+              {echogramImageUrl && !echogramError && (
+                <img
+                  src={echogramImageUrl}
+                  alt="Generated Echogram"
+                  className="max-w-full h-auto mx-auto rounded-md shadow-lg"
+                />
+              )}
+              {!echogramImageUrl && !echogramError && echogramLoadingFor && (
+                 <div className="text-center py-10">
+                    <Loader2 className="h-12 w-12 text-teal-400 animate-spin mx-auto mb-4" />
+                    <p className="text-white/80 text-lg">Generating Echogram...</p>
+                 </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-700 text-right">
+              <button
+                onClick={closeEchogramModal}
+                className="bg-gradient-to-r from-teal-500 to-blue-500 text-white px-6 py-2.5 rounded-lg font-medium hover:from-teal-600 hover:to-blue-600 transition-all duration-300"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
