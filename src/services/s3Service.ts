@@ -46,7 +46,7 @@ export class S3Service {
   }
 
   static async generateEchogram(filename: string): Promise<Blob> {
-    const echogramApiUrl = `https://noaa-s3-backend.fly.dev/generate-echogram?filename=${filename}`;
+    const echogramApiUrl = `https://noaa-echogram.fly.dev/generate-echogram?filename=${filename}`;
     try {
       const response = await fetch(echogramApiUrl);
       if (!response.ok) {
