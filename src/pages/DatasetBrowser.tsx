@@ -58,13 +58,13 @@ const DatasetBrowser: React.FC = () => {
     window.open(file.url, '_blank');
   };
 
-  const handleGenerateEchogram = async (filename: string) => {
-    setEchogramLoadingFor(filename);
+  const handleGenerateEchogram = async (file: RawFile) => {
+    setEchogramLoadingFor(file.filename);
     setEchogramError(null);
     setEchogramImageUrl(null); // Clear previous image
 
     try {
-      const blob = await S3Service.generateEchogram(filename);
+      const blob = await S3Service.generateEchogram(file.cruise, file.filename);
       const imageUrl = URL.createObjectURL(blob);
       setEchogramImageUrl(imageUrl);
       setEchogramModalOpen(true);
@@ -315,7 +315,7 @@ const DatasetBrowser: React.FC = () => {
                       </button>
                       {file.filename.toLowerCase().endsWith('.raw') && (
                         <button
-                          onClick={() => handleGenerateEchogram(file.filename)}
+                          onClick={() => handleGenerateEchogram(file)}
                           disabled={echogramLoadingFor !== null}
                           title="Generate and view echogram for this .raw file"
                           className="flex items-center space-x-2 bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:from-purple-600 hover:to-indigo-600 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"

@@ -7,6 +7,7 @@ export interface RawFile {
   url: string;
   parsedDate: string;
   parsedTime: string;
+  cruise: string; // Added cruise property
 }
 
 export interface SpeciesDetection {
