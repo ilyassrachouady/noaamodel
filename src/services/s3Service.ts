@@ -45,7 +45,7 @@ export class S3Service {
         lastModified: file.datetime || '',
         parsedDate: file.datetime ? file.datetime.split(' ')[0] : '',
         parsedTime: file.datetime ? file.datetime.split(' ')[1] : '',
-        cruise: file.cruise || cruise,
+        cruise: cruise, // Ensure the collection's cruise ID is used
         mode: this.extractModeFromFilename(file.filename),
         formattedSize: this.formatFileSize(file.size),
         isDownloadable: file.size > 0
