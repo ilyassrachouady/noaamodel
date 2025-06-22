@@ -69,39 +69,40 @@ export class S3Service {
    * @returns Promise<Blob> Image blob
    */
   static async generateEchogram(cruise: string, filename: string): Promise<Blob> {
-    try {
-      // Construct URL with parameters
-      const url = new URL(ECHOGRAM_API_URL);
-      url.searchParams.append('cruise', cruise);
-      url.searchParams.append('filename', filename);
-      
-      console.log('Generating echogram from:', url.toString());
-      
-      const response = await fetch(url.toString());
-      
-      if (!response.ok) {
-        // Try to parse error details from backend
-        let errorDetail = `HTTP error ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorDetail = errorData.detail || errorData.message || errorDetail;
-        } catch (e) {
-          console.warn('Could not parse error response', e);
-        }
-        
-        throw new Error(`Failed to generate echogram: ${errorDetail}`);
-      }
-      
-      return await response.blob();
-    } catch (error) {
-      console.error('Error generating echogram:', error);
-      throw new Error(
-        error instanceof Error 
-          ? error.message 
-          : 'Failed to generate echogram'
-      );
+  try {
+    // Validate parameters
+    if (!cruise || !filename) {
+      throw new Error(`Invalid parameters: cruise=${cruise}, filename=${filename}`);
     }
+    
+    const url = new URL(ECHOGRAM_API_URL);
+    url.searchParams.append('cruise', cruise);
+    url.searchParams.append('filename', filename);
+    
+    console.log('Generating echogram with:', { cruise, filename });
+    
+    const response = await fetch(url.toString(), {
+      mode: 'cors',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    return await response.blob();
+  } catch (error) {
+    console.error('Full echogram error:', error);
+    throw new Error(
+      error instanceof Error 
+        ? error.message 
+        : 'Failed to generate echogram'
+    );
   }
+}
 
   /**
    * Formats file size in human-readable format
