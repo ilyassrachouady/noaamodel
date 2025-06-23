@@ -76,10 +76,10 @@ export class S3Service {
     }
     
     const url = new URL(ECHOGRAM_API_URL);
-    url.searchParams.append('cruise', cruise);
+    // url.searchParams.append('cruise', cruise); // Cruise is now part of the hardcoded PREFIX in the backend
     url.searchParams.append('filename', filename);
     
-    console.log('Generating echogram with:', { cruise, filename });
+    console.log('Generating echogram with:', { filename }); // Removed cruise from log
     
     const response = await fetch(url.toString(), {
       mode: 'cors',
