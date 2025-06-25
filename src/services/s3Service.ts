@@ -170,4 +170,59 @@ export class S3Service {
   static getDownloadUrl(cruise: string, filename: string): string {
     return `https://noaa-wcsd-pds.s3.amazonaws.com/data/raw/Reuben_Lasker/${cruise}/EK80/${filename}`;
   }
+
+  /**
+   * Extracts a spectrogram image for a specific file.
+   * @param filePath Path to the .raw file as expected by the backend (e.g., "data/YOUR_FILENAME.raw")
+   * @returns Promise<Blob> Image blob of the spectrogram
+   */
+  static async extractSpectrogram(filePath: string): Promise<Blob> {
+    const SPECTROGRAM_API_URL = 'https://noaa-echogram.fly.dev/extract-spectrogram';
+    try {
+      if (!filePath) {
+        throw new Error('File path is required for extracting spectrogram.');
+      }
+
+      console.log('Requesting spectrogram for:', filePath);
+
+      const response = await fetch(SPECTROGRAM_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'image/png', // Explicitly accept PNG
+        },
+        body: JSON.stringify({ file_path: filePath }),
+      });
+
+      if (!response.ok) {
+        // Try to get more detailed error from response body
+        let errorDetail = `HTTP error ${response.status}`;
+        try {
+          const errorData = await response.json(); // Backend might return JSON error
+          errorDetail = errorData.detail || errorData.message || errorDetail;
+        } catch (e) {
+          // If response is not JSON, use text
+          const textError = await response.text();
+          errorDetail = textError || errorDetail;
+        }
+        console.error('Spectrogram API Error:', errorDetail);
+        throw new Error(`Failed to extract spectrogram: ${errorDetail}`);
+      }
+
+      const imageBlob = await response.blob();
+      if (imageBlob.type !== 'image/png') {
+        // If the server didn't honor accept header or there's an issue
+        console.warn(`Expected image/png but received ${imageBlob.type}. Trying to use it anyway.`);
+        // You could throw an error here if strict type checking is needed:
+        // throw new Error(`Invalid image type received: ${imageBlob.type}`);
+      }
+
+      console.log('Spectrogram image blob received:', imageBlob);
+      return imageBlob;
+
+    } catch (error) {
+      console.error('Error in extractSpectrogram service:', error);
+      throw error; // Re-throw to be caught by the calling component
+    }
+  }
 }

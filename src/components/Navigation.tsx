@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Fish, Database, Search, BarChart3, Menu, X, Waves } from 'lucide-react';
+import { Fish, Database, Search, BarChart3, Menu, X, Waves, FileSearch } from 'lucide-react';
 
 const Navigation: React.FC = () => {
   const location = useLocation();
@@ -11,6 +11,7 @@ const Navigation: React.FC = () => {
     { path: '/browser', label: 'Dataset', icon: Database },
     { path: '/analyzer', label: 'Analyzer', icon: Search },
     { path: '/spectrograms', label: 'Spectrograms', icon: BarChart3 },
+    { path: '/spectrogram-extractor', label: 'Extractor', icon: FileSearch },
   ];
 
   return (

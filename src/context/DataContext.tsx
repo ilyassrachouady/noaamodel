@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-export interface RawFile {
+export interface RawFile { // Ensure this is exported
   filename: string;
   size: number;
   lastModified: string;
   url: string;
   parsedDate: string;
   parsedTime: string;
-  cruise: string; // Added cruise property
+  cruise: string;
+  formattedSize?: string; // Added from s3Service logic
+  mode?: 'CW' | 'FM' | 'Unknown'; // Added from s3Service logic
 }
 
 export interface SpeciesDetection {
